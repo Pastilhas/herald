@@ -1,20 +1,38 @@
 module main
 
-fn parse_string(code string) (string, string) {
-	colon := code.index(":") or { return "", code }
-	size := code[..colon].int()
-	
-	output := code[colon+1..colon+1+size]
-	result := code[colon+1+size..]
+type Token = []Token | int | map[string]Token | string
 
-	return output, result
+const (
+	colon = `:`.bytes()[0]
+	endmk = `e`.bytes()[0]
+	lstmk = `l`.bytes()[0]
+	mapmk = `d`.bytes()[0]
+	intmk = `i`.bytes()[0]
+)
+
+pub fn bdecode(bytes []u8) {
+	mut buf := bytes.clone()
+
+	for buf.len > 0 {
+		if buf[0] == mapmk {
+		}
+	}
 }
 
-fn parse_integer(code string) (string, string) {
-	end := code.index("e") or { return "", code }
+fn parse_int(bytes []u8) (Token, []u8) {
+	mut i := 1
+	for ; bytes[i] != endmk; i++ {}
+	out := bytes[1..i].bytestr().int()
+	res := bytes[i + 1..]
+	return out, res
+}
 
-	output := code[1..end]
-	result := code[end..]
-
-	return output, result
+fn parse_str(bytes []u8) (Token, []u8) {
+	mut i := 0
+	for ; bytes[i] != colon; i++ {}
+	size := bytes[..i].bytestr().int()
+	i++
+	out := bytes[i..i + size].bytestr()
+	res := bytes[i + size..]
+	return out, res
 }
