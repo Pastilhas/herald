@@ -59,3 +59,31 @@ fn parse_list(bytes []u8) (Token, []u8) {
 
 	return out, buf
 }
+
+fn parse_map(bytes []u8) (Token, []u8) {
+	mut out := map[string]Token{}
+
+	mut buf := bytes.clone()[1..]
+	mut tmp_key := Token(0)
+	mut tmp_out := Token(0)
+
+	for buf.len > 0 && buf[0] != end_mark {
+		tmp_key, buf = parse_str(buf)
+
+		if buf[0] == int_mark {
+			tmp_out, buf = parse_int(buf)
+		} else if buf[0] == map_mark {
+			tmp_out, buf = parse_map(buf)
+		} else if buf[0] == list_mark {
+			tmp_out, buf = parse_list(buf)
+		} else {
+			tmp_out, buf = parse_str(buf)
+		}
+
+		if mut tmp_key is []u8 {
+			out[tmp_key.bytestr()] = tmp_out
+		}
+	}
+
+	return out, buf
+}
