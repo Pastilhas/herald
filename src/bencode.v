@@ -5,18 +5,22 @@ type Token = []Token | []u8 | int | map[string]Token
 const (
 	colon_mark = `:`.bytes()[0]
 	end_mark   = `e`.bytes()[0]
+	int_mark   = `i`.bytes()[0]
 	list_mark  = `l`.bytes()[0]
 	map_mark   = `d`.bytes()[0]
-	int_mark   = `i`.bytes()[0]
 )
 
-pub fn bdecode(bytes []u8) {
-	mut buf := bytes.clone()
-
-	for buf.len > 0 {
-		if buf[0] == map_mark {
-		}
+fn parse_any(bytes []u8) (Token, []u8) {
+	if bytes[0] == int_mark {
+		return parse_int(bytes)
 	}
+	if bytes[0] == map_mark {
+		return parse_map(bytes)
+	}
+	if bytes[0] == list_mark {
+		return parse_list(bytes)
+	}
+	return parse_str(bytes)
 }
 
 fn parse_int(bytes []u8) (Token, []u8) {
@@ -44,16 +48,7 @@ fn parse_list(bytes []u8) (Token, []u8) {
 	mut tmp_out := Token(0)
 
 	for buf.len > 0 && buf[0] != end_mark {
-		if buf[0] == int_mark {
-			tmp_out, buf = parse_int(buf)
-		} else if buf[0] == map_mark {
-			tmp_out, buf = parse_map(buf)
-		} else if buf[0] == list_mark {
-			tmp_out, buf = parse_list(buf)
-		} else {
-			tmp_out, buf = parse_str(buf)
-		}
-
+		tmp_out, buf = parse_any(buf)
 		out << tmp_out
 	}
 
@@ -69,16 +64,7 @@ fn parse_map(bytes []u8) (Token, []u8) {
 
 	for buf.len > 0 && buf[0] != end_mark {
 		tmp_key, buf = parse_str(buf)
-
-		if buf[0] == int_mark {
-			tmp_out, buf = parse_int(buf)
-		} else if buf[0] == map_mark {
-			tmp_out, buf = parse_map(buf)
-		} else if buf[0] == list_mark {
-			tmp_out, buf = parse_list(buf)
-		} else {
-			tmp_out, buf = parse_str(buf)
-		}
+		tmp_out, buf = parse_any(buf)
 
 		if mut tmp_key is []u8 {
 			out[tmp_key.bytestr()] = tmp_out
