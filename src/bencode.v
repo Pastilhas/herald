@@ -52,7 +52,7 @@ fn parse_list(bytes []u8) (Token, []u8) {
 		out << tmp_out
 	}
 
-	return out, buf
+	return out, buf[1..]
 }
 
 fn parse_map(bytes []u8) (Token, []u8) {
@@ -71,5 +71,5 @@ fn parse_map(bytes []u8) (Token, []u8) {
 		}
 	}
 
-	return out, buf
+	return out, buf[1..]
 }
