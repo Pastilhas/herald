@@ -3,11 +3,11 @@ module main
 type Token = []Token | []u8 | int | map[string]Token
 
 const (
-	colon_mark = `:`.bytes()[0]
-	end_mark   = `e`.bytes()[0]
-	int_mark   = `i`.bytes()[0]
-	list_mark  = `l`.bytes()[0]
-	map_mark   = `d`.bytes()[0]
+	colon_mark = 0x3A // `:`
+	end_mark   = 0x65 // `e`
+	int_mark   = 0x69 // `i`
+	list_mark  = 0x6C // `l`
+	map_mark   = 0x64 // `d`
 )
 
 fn parse_any(bytes []u8) (Token, []u8) {
