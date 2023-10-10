@@ -68,10 +68,10 @@ fn (mut conn TrackerConn) send_announce() {
 	packet << []u8{len: 8} // downloaded
 	packet << []u8{len: 8} // left
 	packet << []u8{len: 8} // uploaded
-	packet << []u8{len: 4} // event
-	packet << []u8{len: 4} // IP
-	packet << []u8{len: 4} // key
-	packet << []u8{len: 4} // num_want
+	packet << []u8{len: 4} // event 2 first, 0 after, 3 stop
+	packet << []u8{len: 4} // IP Optional
+	packet << []u8{len: 4} // key Optional
+	packet << []u8{len: 4} // num_want Optional
 	packet << []u8{len: 2} // port
 
 	conn.udp.write(packet) or {
@@ -118,15 +118,21 @@ pub fn announce_to_tracker(addr string) {
 	mut tracker := TrackerConn.new(addr)
 
 	for {
-		tracker.send_connect()
-		if tracker.wait_connect() {
-			break
-		} else {
-			tracker.update_connection_timeout()
+		for {
+			tracker.send_connect()
+			if tracker.wait_connect() {
+				break
+			} else {
+				tracker.update_connection_timeout()
+			}
+		}
+
+		tracker.reset_connection_timeout()
+
+		for {
+			tracker.send_announce()
 		}
 	}
-
-	tracker.reset_connection_timeout()
 
 	/*
 	while not connected
