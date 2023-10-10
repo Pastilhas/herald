@@ -20,11 +20,13 @@ struct TrackerConn {
 mut:
 	transaction_id []u8
 	connection_id  []u8
+	peer_id        []u8
+	info_hash      []u8
 	udp            net.UdpConn
 	retry          int
 }
 
-fn TrackerConn.new(addr string) TrackerConn {
+fn TrackerConn.new(addr string, info_hash []u8) TrackerConn {
 	udp := net.dial_udp(addr) or {
 		println('eh')
 		exit(1)
@@ -48,6 +50,8 @@ fn (mut conn TrackerConn) reset_connection_timeout() {
 
 fn (mut conn TrackerConn) send_connect() {
 	conn.transaction_id = rand.bytes(4) or { []u8{len: 4} }
+	conn.peer_id = '-HD0001-'.bytes()
+	conn.peer_id << rand.bytes(20) or { []u8{len: 4} }
 
 	mut packet := connect_request_prefix.clone()
 	packet << conn.transaction_id
@@ -59,20 +63,21 @@ fn (mut conn TrackerConn) send_connect() {
 
 fn (mut conn TrackerConn) send_announce() {
 	conn.transaction_id = rand.bytes(4) or { []u8{len: 4} }
+	key := rand.bytes(4) or { []u8{len: 4} }
 
 	mut packet := conn.connection_id.clone()
 	packet << announce_request_action.clone()
-	packet << conn.transaction_id
-	packet << []u8{len: 20} // info_hash
-	packet << []u8{len: 20} // peer_id
+	packet << conn.transaction_id.clone()
+	packet << conn.info_hash
+	packet << conn.peer_id
 	packet << []u8{len: 8} // downloaded
 	packet << []u8{len: 8} // left
 	packet << []u8{len: 8} // uploaded
 	packet << []u8{len: 4} // event 2 first, 0 after, 3 stop
 	packet << []u8{len: 4} // IP Optional
-	packet << []u8{len: 4} // key Optional
-	packet << []u8{len: 4} // num_want Optional
-	packet << []u8{len: 2} // port
+	packet << key
+	packet << hex.decode('0x80000001')!
+	packet << hex.decode('0x1B39')!
 
 	conn.udp.write(packet) or {
 		println('Error writting')
