@@ -132,7 +132,7 @@ fn (mut conn TrackerConn) wait_announce() bool {
 		ip := buf[i..i + 4].map(it.str()).join('.')
 		port := binary.big_endian_u16(buf[i + 4..i + 6])
 
-		conn.peers << Peer{ip, port}
+		conn.peers << Peer{ip, port, conn.torr_file}
 	}
 
 	return true
