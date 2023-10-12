@@ -20,17 +20,17 @@ struct TrackerConn {
 mut:
 	retry          int = 0
 	udp            net.UdpConn
-	torrent        torrent.Torrent
+	torr_file      Torrent
 	transaction_id []u8   = []u8{}
 	connection_id  []u8   = []u8{}
 	peer_id        []u8   = []u8{}
 	peers          []Peer = []Peer{}
 }
 
-fn TrackerConn.new(addr string, torrent Torrent) TrackerConn {
+fn TrackerConn.new(addr string, torr_file Torrent) TrackerConn {
 	udp := net.dial_udp(addr) or { panic('Failed to dial UDP ${addr}') }
 	mut tracker := TrackerConn{
-		torrent: torrent
+		torrent: torr_file
 		udp: udp
 	}
 	tracker.udp.set_read_timeout(time.Duration(15))
@@ -63,15 +63,17 @@ fn (mut conn TrackerConn) send_connect() {
 fn (mut conn TrackerConn) send_announce() ! {
 	conn.transaction_id = rand.bytes(4) or { []u8{len: 4} }
 	key := rand.bytes(4) or { []u8{len: 4} }
+	mut size := []u8{cap: 8}
+	big_endian_put_u64(size, conn.torr_file.total_size)
 
 	mut packet := []u8{cap: 512}
 	packet << conn.connection_id.clone()
 	packet << torrent.announce_request_action.clone()
 	packet << conn.transaction_id.clone()
-	packet << conn.torrent.info_hash
+	packet << conn.torr_file.info_hash
 	packet << conn.peer_id
 	packet << []u8{len: 8}
-	packet << conn.torrent.total_size
+	packet << size
 	packet << []u8{len: 8}
 	packet << []u8{len: 4}
 	packet << []u8{len: 4}
