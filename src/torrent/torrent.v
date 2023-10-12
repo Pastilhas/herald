@@ -8,6 +8,7 @@ pub struct Torrent {
 pub:
 	announce     string
 	info_hash    []u8
+	total_size   int
 	file_size    []int
 	file_path    []string
 	piece_hash   []string
@@ -47,8 +48,9 @@ pub fn Torrent.new(raw []u8) Torrent {
 	announce := dict['announce']
 	info_hash := get_info_hash(raw)
 	file_size, file_path := get_files(dict['info'])
+	total_size := arrays.sum(file_size) or { 0 }
 	pieces := get_pieces(dict['info']['pieces'])
 	piece_length := dict['info']['piece length']
 
-	return Torrent{announce, info_hash, file_size, file_path, pieces, piece_length}
+	return Torrent{announce, info_hash, total_size, file_size, file_path, pieces, piece_length}
 }
