@@ -2,7 +2,7 @@
 * https://www.bittorrent.org/beps/bep_0015.html
 */
 
-module main
+module torrent
 
 import math
 import net
@@ -18,20 +18,21 @@ const (
 
 struct TrackerConn {
 mut:
-	transaction_id []u8
-	connection_id  []u8
-	peer_id        []u8
-	info_hash      []u8
+	retry          int = 0
 	udp            net.UdpConn
-	retry          int
+	torrent        torrent.Torrent
+	transaction_id []u8   = []u8{}
+	connection_id  []u8   = []u8{}
+	peer_id        []u8   = []u8{}
+	peers          []Peer = []Peer{}
 }
 
-fn TrackerConn.new(addr string, info_hash []u8) TrackerConn {
-	udp := net.dial_udp(addr) or {
-		println('eh')
-		exit(1)
+fn TrackerConn.new(addr string, torrent Torrent) TrackerConn {
+	udp := net.dial_udp(addr) or { panic('Failed to dial UDP ${addr}') }
+	mut tracker := TrackerConn{
+		torrent: torrent
+		udp: udp
 	}
-	mut tracker := TrackerConn{[]u8{}, []u8{}, udp, 0}
 	tracker.udp.set_read_timeout(time.Duration(15))
 
 	return tracker
@@ -53,36 +54,32 @@ fn (mut conn TrackerConn) send_connect() {
 	conn.peer_id = '-HD0001-'.bytes()
 	conn.peer_id << rand.bytes(20) or { []u8{len: 4} }
 
-	mut packet := connect_request_prefix.clone()
+	mut packet := []u8{cap: 512}
+	packet << torrent.connect_request_prefix.clone()
 	packet << conn.transaction_id
-	conn.udp.write(packet) or {
-		println('Error writting')
-		exit(1)
-	}
+	conn.udp.write(packet) or { panic('Error writting connect') }
 }
 
-fn (mut conn TrackerConn) send_announce() {
+fn (mut conn TrackerConn) send_announce() ! {
 	conn.transaction_id = rand.bytes(4) or { []u8{len: 4} }
 	key := rand.bytes(4) or { []u8{len: 4} }
 
-	mut packet := conn.connection_id.clone()
-	packet << announce_request_action.clone()
+	mut packet := []u8{cap: 512}
+	packet << conn.connection_id.clone()
+	packet << torrent.announce_request_action.clone()
 	packet << conn.transaction_id.clone()
-	packet << conn.info_hash
+	packet << conn.torrent.info_hash
 	packet << conn.peer_id
-	packet << []u8{len: 8} // downloaded
-	packet << []u8{len: 8} // left
-	packet << []u8{len: 8} // uploaded
-	packet << []u8{len: 4} // event 2 first, 0 after, 3 stop
-	packet << []u8{len: 4} // IP Optional
+	packet << []u8{len: 8}
+	packet << conn.torrent.total_size
+	packet << []u8{len: 8}
+	packet << []u8{len: 4}
+	packet << []u8{len: 4}
 	packet << key
 	packet << hex.decode('0x80000001')!
 	packet << hex.decode('0x1B39')!
 
-	conn.udp.write(packet) or {
-		println('Error writting')
-		exit(1)
-	}
+	conn.udp.write(packet) or { panic('Error writting announce') }
 }
 
 fn (mut conn TrackerConn) wait_connect() bool {
@@ -111,16 +108,36 @@ fn (mut conn TrackerConn) wait_connect() bool {
 
 fn (mut conn TrackerConn) wait_announce() bool {
 	mut buf := []u8{cap: 512}
-	_, _ := conn.udp.read(mut buf) or {
+	len, _ := conn.udp.read(mut buf) or {
 		println('Error reading')
-		exit(1)
+		return false
 	}
 
-	return false
+	if len < 16 {
+		return false
+	}
+
+	action := binary.big_endian_u32(buf[..4])
+	if action != 1 {
+		return false
+	}
+
+	if buf[4..8] != conn.transaction_id {
+		return false
+	}
+
+	for i := 20; i < buf.len; i += 6 {
+		ip := buf[i..i + 4].map(it.str()).join('.')
+		port := binary.big_endian_u16(buf[i + 4..i + 6])
+
+		conn.peers << Peer{ip, port}
+	}
+
+	return true
 }
 
 pub fn announce_to_tracker(addr string) {
-	mut tracker := TrackerConn.new(addr)
+	mut tracker := TrackerConn.new(addr, ''.bytes())
 
 	for {
 		for {
@@ -134,8 +151,9 @@ pub fn announce_to_tracker(addr string) {
 
 		tracker.reset_connection_timeout()
 
-		for {
-			tracker.send_announce()
+		tracker.send_announce() or { panic('Failed to announce') }
+		if tracker.wait_announce() {
+			break
 		}
 	}
 
