@@ -8,7 +8,7 @@ pub struct Torrent {
 pub:
 	announce     string
 	info_hash    []u8
-	total_size   int
+	total_size   u64
 	file_size    []int
 	file_path    []string
 	piece_hash   []string
