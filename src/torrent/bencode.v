@@ -6,7 +6,15 @@ const int_mark = u8(0x69) // `i`
 const lst_mark = u8(0x6C) // `l`
 const map_mark = u8(0x64) // `d`
 
-type Token = []Token | []u8 | int | map[string]Token
+pub type Token = []Token | []u8 | int | map[string]Token
+
+pub fn decode(data []u8) !Token {
+	mut p := Parser{
+		bytes: data
+		i: 0
+	}
+	return p.parse()
+}
 
 struct Parser {
 	bytes []u8
@@ -27,65 +35,76 @@ fn (mut p Parser) parse() !Token {
 }
 
 fn (mut p Parser) parse_int() !Token {
-	mut i := p.i + 1
-	for ; i < p.bytes.len && p.bytes[i] >= u8(0x30) && p.bytes[i] <= u8(0x39)
-		&& p.bytes[i] != torrent.end_mark; i += 1 {
+	i := p.i + 1
+	mut j := i
+
+	for ; j < p.bytes.len && p.bytes[j] >= u8(0x30) && p.bytes[j] <= u8(0x39)
+		&& p.bytes[j] != torrent.end_mark; j += 1 {
 	}
 
-	if i == p.bytes.len || p.bytes[i] != torrent.end_mark {
-		return error('Invalid int at ${p.i}')
+	if j >= p.bytes.len || p.bytes[j] != torrent.end_mark {
+		return error('Invalid int at ${i}:${j}')
 	}
 
-	out := p.bytes[p.i + 1..i].bytestr().int()
-	p.i = i + 1
+	out := p.bytes[i..j].bytestr().int()
+	p.i = j + 1
 	return out
 }
 
 fn (mut p Parser) parse_str() !Token {
 	mut i := p.i
-	for ; i < p.bytes.len && p.bytes[i] >= u8(0x30) && p.bytes[i] <= u8(0x39)
-		&& p.bytes[i] != torrent.cln_mark; i += 1 {
+	mut j := p.i + 1
+
+	for ; j < p.bytes.len && p.bytes[j] >= u8(0x30) && p.bytes[j] <= u8(0x39)
+		&& p.bytes[j] != torrent.cln_mark; j += 1 {
 	}
 
-	if i == p.bytes.len || p.bytes[i] != torrent.cln_mark {
-		return error('Invalid string length at ${p.i}')
+	if j >= p.bytes.len || p.bytes[j] != torrent.cln_mark {
+		return error('Invalid string length at ${i}:${j}')
 	}
 
-	len := p.bytes[p.i..i].bytestr().int()
-	i += 1
-	p.i = i + len
+	len := p.bytes[i..j].bytestr().int()
 
-	if p.i > p.bytes.len {
-		return error('Invalid string length at ${i}')
+	if j + 1 + len > p.bytes.len {
+		return error('Invalid string length at ${i}:${j}')
 	}
 
-	return p.bytes[i..p.i]
+	i = j + 1
+	j = i + len
+	p.i = j
+	return p.bytes[i..j]
 }
 
 fn (mut p Parser) parse_lst() !Token {
-	mut out := []Torrent{}
+	i := p.i
+	mut out := []Token{}
+
 	for p.i < p.bytes.len && p.bytes[p.i] != torrent.end_mark {
-		tmp := p.parse()!
-		out << tmp
+		out << p.parse() or { return error('${err}\nInvalid list at ${i}') }
 	}
 
-	if p.i == p.bytes.len {
-		return error('Invalid list at ${p.i}')
+	if p.i >= p.bytes.len {
+		return error('Invalid list at ${i}')
 	}
 
 	return out
 }
 
 fn (mut p Parser) parse_map() !Token {
+	i := p.i
 	mut out := map[string]Token{}
 
 	for p.i < p.bytes.len && p.bytes[p.i] != torrent.end_mark {
-		mut k := p.parse_str()!
-		v := p.parse()!
+		mut k := p.parse_str() or { return error('${err}\nInvalid map at ${i}') }
+		v := p.parse() or { return error('${err}\nInvalid map at ${i}') }
 
 		if mut k is []u8 {
 			out[k.bytestr()] = v
 		}
+	}
+
+	if p.i >= p.bytes.len {
+		return error('Invalid map at ${i}')
 	}
 
 	return out
