@@ -1,4 +1,4 @@
-module torrent
+module bencode
 
 const cln_mark = u8(0x3A) // `:`
 const end_mark = u8(0x65) // `e`
@@ -23,11 +23,11 @@ mut:
 }
 
 fn (mut p Parser) parse() !Token {
-	return if p.bytes[p.i] == torrent.int_mark {
+	return if p.bytes[p.i] == bencode.int_mark {
 		p.parse_int()!
-	} else if p.bytes[p.i] == torrent.map_mark {
+	} else if p.bytes[p.i] == bencode.map_mark {
 		p.parse_map()!
-	} else if p.bytes[p.i] == torrent.lst_mark {
+	} else if p.bytes[p.i] == bencode.lst_mark {
 		p.parse_lst()!
 	} else {
 		p.parse_str()!
@@ -39,10 +39,10 @@ fn (mut p Parser) parse_int() !Token {
 	mut j := i
 
 	for ; j < p.bytes.len && p.bytes[j] >= u8(0x30) && p.bytes[j] <= u8(0x39)
-		&& p.bytes[j] != torrent.end_mark; j += 1 {
+		&& p.bytes[j] != bencode.end_mark; j += 1 {
 	}
 
-	if j >= p.bytes.len || p.bytes[j] != torrent.end_mark {
+	if j >= p.bytes.len || p.bytes[j] != bencode.end_mark {
 		return error('Invalid int at ${i}:${j}')
 	}
 
@@ -56,10 +56,10 @@ fn (mut p Parser) parse_str() !Token {
 	mut j := p.i + 1
 
 	for ; j < p.bytes.len && p.bytes[j] >= u8(0x30) && p.bytes[j] <= u8(0x39)
-		&& p.bytes[j] != torrent.cln_mark; j += 1 {
+		&& p.bytes[j] != bencode.cln_mark; j += 1 {
 	}
 
-	if j >= p.bytes.len || p.bytes[j] != torrent.cln_mark {
+	if j >= p.bytes.len || p.bytes[j] != bencode.cln_mark {
 		return error('Invalid string length at ${i}:${j}')
 	}
 
@@ -78,8 +78,9 @@ fn (mut p Parser) parse_str() !Token {
 fn (mut p Parser) parse_lst() !Token {
 	i := p.i
 	mut out := []Token{}
+	p.i += 1
 
-	for p.i < p.bytes.len && p.bytes[p.i] != torrent.end_mark {
+	for p.i < p.bytes.len && p.bytes[p.i] != bencode.end_mark {
 		out << p.parse() or { return error('${err}\nInvalid list at ${i}') }
 	}
 
@@ -93,8 +94,9 @@ fn (mut p Parser) parse_lst() !Token {
 fn (mut p Parser) parse_map() !Token {
 	i := p.i
 	mut out := map[string]Token{}
+	p.i += 1
 
-	for p.i < p.bytes.len && p.bytes[p.i] != torrent.end_mark {
+	for p.i < p.bytes.len && p.bytes[p.i] != bencode.end_mark {
 		mut k := p.parse_str() or { return error('${err}\nInvalid map at ${i}') }
 		v := p.parse() or { return error('${err}\nInvalid map at ${i}') }
 
