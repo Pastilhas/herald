@@ -1,5 +1,9 @@
 module main
 
+import os
+
 fn main() {
-	println('Hello World!')
+	data := os.read_file('test.torrent')!
+	tor := Torrent.from(data)!
+	println(tor.name)
 }

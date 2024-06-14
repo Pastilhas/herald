@@ -3,7 +3,7 @@ module main
 const cln_mark = u8(0x3A) // `:`
 const end_mark = u8(0x65) // `e`
 
-fn parse_int(data string, start int) !int {
+fn parse_int(data []u8, start int) !int {
 	i := start + 1
 	mut j := i
 
@@ -14,11 +14,10 @@ fn parse_int(data string, start int) !int {
 		return error('Invalid int at ${i}:${j}')
 	}
 
-	out := data[i..j].int()
-	return out
+	return data[i..j].bytestr().int()
 }
 
-fn parse_str(data string, start int) !string {
+fn parse_str(data []u8, start int) !string {
 	mut i := start
 	mut j := i + 1
 
@@ -29,7 +28,7 @@ fn parse_str(data string, start int) !string {
 		return error('Invalid string length at ${i}:${j}')
 	}
 
-	len := data[i..j].int()
+	len := data[i..j].bytestr().int()
 
 	if (j + 1 + len) > data.len {
 		return error('Invalid string length at ${i}:${j}')
@@ -37,21 +36,21 @@ fn parse_str(data string, start int) !string {
 
 	i = j + 1
 	j = i + len
-	return data[i..j]
+	return data[i..j].bytestr()
 }
 
-fn get_string(data string, id string, after int) ?string {
-	index := data.index_after(id, after)
+fn get_string(data []u8, id string, after int) ?string {
+	i := data.bytestr().index_after(id, after)
 
-	if index < 0 {
+	if i < 0 {
 		return none
 	}
 
-	return parse_str(data, index + id.len) or { none }
+	return parse_str(data, i + id.len) or { none }
 }
 
-fn get_int(data string, id string, after int) ?int {
-	index := data.index_after(id, after)
+fn get_int(data []u8, id string, after int) ?int {
+	index := data.bytestr().index_after(id, after)
 
 	if index < 0 {
 		return none

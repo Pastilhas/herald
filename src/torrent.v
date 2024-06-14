@@ -16,7 +16,6 @@ struct Torrent {
 
 fn Torrent.from(data string) !Torrent {
 	name := get_string(data, '4:name', 0) or { return error('Required name') }
-	announce := get_string(data, '8:announce', 0) or { return error('Required announce') }
 
 	files := if _ := get_string(data, '4:path', 0) {
 		get_files(data)
@@ -32,7 +31,6 @@ fn Torrent.from(data string) !Torrent {
 
 	return Torrent{
 		name: name
-		announce: announce
 		pieces: pieces
 		piece_length: piece_length
 		files: files
