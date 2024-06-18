@@ -50,8 +50,8 @@ fn parse_peers(data []u8) ![]net.Addr {
 	return peers
 }
 
-fn handshake(hash []u8, peer_id []u8) []u8 {
-	mut data := []u8{cap: 52}
+fn write_handshake(hash []u8, peer_id []u8) []u8 {
+	mut data := []u8{cap: 68}
 
 	data << 0x13
 	data << 'BitTorrent protocol'.bytes()
@@ -60,4 +60,23 @@ fn handshake(hash []u8, peer_id []u8) []u8 {
 	data << peer_id
 
 	return data
+}
+
+fn read_handshake(handshake []u8, hash []u8, peer []u8) ! {
+	a := handshake[0]
+	b := handshake[1..20].bytestr()
+	c := handshake[28..48]
+	d := handshake[48..68]
+
+	if a != 0x13 || b != 'BitTorrent protocol' {
+		return error('Invalid protocol')
+	}
+
+	if c != hash {
+		return error('Invalid hash')
+	}
+
+	if d != peer {
+		return error('Invalid peer id')
+	}
 }
