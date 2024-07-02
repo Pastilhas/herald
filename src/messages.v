@@ -39,3 +39,31 @@ fn send_have(index u32) ! {
 
 	msg := write_message(msg_have, buf)
 }
+
+fn write_message(id u8, payload []u8) []u8 {
+	mut buf := []u8{len: 4, cap: payload.len + 5}
+	binary.big_endian_put_u32(mut buf, u32(payload.len + 1))
+	buf << id
+	buf << payload
+	return buf
+}
+
+fn read_message(message []u8) !(u8, []u8) {
+	if message.len < 5 {
+		return error('Invalid message size')
+	}
+
+	len := binary.big_endian_u32(message)
+	id := message[4]
+
+	if len != message.len + 4 {
+		return error('Invalid length param len <> message.len')
+	}
+
+	if len < 1 {
+		return error('Invalid length param len < 1')
+	}
+
+	payload := message[5..]
+	return id, payload
+}
